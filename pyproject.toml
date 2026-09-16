@@ -1,0 +1,25 @@
+[project]
+name = "atermaj"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "EthanScottWalden", email = "EthanScott.Walden@calbaptist.edu" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "jackdaw",
+    "sb3-contrib>=2.9.0",
+    "stable-baselines3>=2.9.0",
+    "tensorboard>=2.21.0",
+]
+
+[project.scripts]
+atermaj = "atermaj:main"
+
+[build-system]
+requires = ["uv_build>=0.12.15,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.uv.sources]
+jackdaw = { git = "https://github.com/TylerFlar/jackdaw-balatro.git" }
