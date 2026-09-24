@@ -1,10 +1,12 @@
 def main() -> None:
     from sb3_contrib import MaskablePPO
     from jackdaw.env import DirectAdapter
-    from .lib.atermaj_env import AtermajEnv
+    from atermaj.atermaj_env import AtermajEnv
+
+    MODEL_NAME = "ATERMaJ_v0"
 
     env = AtermajEnv(adapter_factory=DirectAdapter, reward_shaping=True)
 
-    model = MaskablePPO("MultiInputPolicy", env, verbose=1, tensorboard_log="runs/balatro_ppo")
-    model.learn(total_timesteps=5)
-    model.save("balatro_ppo")
+    model = MaskablePPO("MultiInputPolicy", env, verbose=1, tensorboard_log=f"runs/{MODEL_NAME}")
+    model.learn(total_timesteps=1)
+    model.save(MODEL_NAME)
