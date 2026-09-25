@@ -2,6 +2,10 @@
 TODO:
 - Investigate how to log joker usage and/or consumable usage. Find out what the heck is in raw_state and if this contains consumable names or ids.
     - Once this is done, figure out a GOOD way to log it, or a GOOD way to store info on it until the end. This will involve both logging callbacks and internal info management in the env.
+
+    - TODO: Seemingly the "center_key" attribute of a card tells us what kind of card it is, including consumables! We can log this info when a move targets a consumable.
+
+
 - Mess around with how rewards are computed, if I so desire.
 - Ask about what to do if simulator throws an exception due to bugged seed.
 - Ask about what to do about the fact that the 500 vector used in gymnasium wrapper doesn't represent all realistic game states.
