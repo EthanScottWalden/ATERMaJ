@@ -46,8 +46,9 @@ class AtermajEnv(BalatroGymnasiumEnv):
 
         super().__init__(adapter_factory, back_keys, stakes, max_steps, seed_prefix, reward_shaping)
 
-    def _compute_reward(self, info: dict[str, Any], terminated: bool, truncated: bool) -> float:
+    def _compute_reward(self, info: dict[str, Any], terminated: bool, truncated: bool, factored: FactoredAction) -> float:
         """Compute step reward from game state deltas."""
+    
         if not self._reward_shaping:
             if terminated or truncated:
                 return 1.0 if self._inner.episode_won else -1.0
@@ -62,26 +63,35 @@ class AtermajEnv(BalatroGymnasiumEnv):
         ante = gs.get("round_resets", {}).get("ante", 1)
         round_num = gs.get("round", 0)
         chips = gs.get("chips", 0)
-        ante_scale = ante / 8.0
+        ante_scale = self._prev_ante / 8.0
 
-        # 1. Blind beaten: round increased → +0.15 * ante_scale
-        if round_num > self._prev_round:
+        earnings = gs.get("round_earnings")
+
+        # Blind beaten: round increased → +0.15 * ante_scale.
+        if round_num > self._prev_round and round_num != 1:
             reward += 0.15 * ante_scale
-            # 2. Boss blind beaten (ante increased) → extra +0.1 * ante_scale
-            if ante > self._prev_ante:
-                reward += 0.1 * ante_scale
-            # 3. Efficient clear: hands remaining bonus
-            hands_left = gs.get("current_round", {}).get("hands_left", 0)
-            reward += 0.01 * hands_left
+            
+        # Boss blind beaten (ante increased) → extra +0.1 * ante_scale
+        if ante > self._prev_ante:
+            reward += 0.1 * ante_scale
 
-        # 4. Score progress within a blind: chips gained toward target
+        # Cash out: reward for unused hands and interest
+        if earnings is not None and factored.action_type == ActionType.CashOut:
+            # Efficient clear: hands remaining bonus. this does not account for the green deck!
+            hands_left = earnings.unused_hands_bonus
+            reward += 0.01 * hands_left
+            # Bonus for each interest dollar.
+            interest = earnings.interest
+            reward += 0.015 * interest
+
+        # Score progress within a blind: chips gained toward target
         blind = gs.get("blind")
         blind_target = getattr(blind, "chips", 0) if blind is not None else 0
         if blind_target > 0 and chips > self._prev_chips:
             chip_delta = chips - self._prev_chips
             reward += 0.02 * min(chip_delta / blind_target, 1.0)
 
-        # 5. Terminal
+        # Terminal
         if terminated or truncated:
             reward += 0.5 if self._inner.episode_won else -0.2
 
@@ -137,7 +147,7 @@ class AtermajEnv(BalatroGymnasiumEnv):
         factored = self._action_table[action]
         game_obs, terminated, truncated, game_mask, info = self._inner.step(factored)
 
-        reward = self._compute_reward(info, terminated, truncated)
+        reward = self._compute_reward(info, terminated, truncated, factored)
         self._update_trackers(info, factored)
 
         # Rebuild action table for next step
