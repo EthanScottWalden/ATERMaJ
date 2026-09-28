@@ -91,16 +91,23 @@ class AtermajEnv(BalatroGymnasiumEnv):
         # Update trackers
         gs: dict[str, Any] = info.get("raw_state", {})
 
-        if factored.action_type == ActionType.UseConsumable:
-            consumable_name = self._prev_consumables[factored.entity_target].ability['name']
+        def update_consumable_usage(consumable_name: str):
             prev_consumable_usage = self._session_consumable_usages.get(consumable_name, 0)
             self._session_consumable_usages[consumable_name] = prev_consumable_usage + 1
+
+        if factored.action_type == ActionType.UseConsumable:
+            consumable_name = self._prev_consumables[factored.entity_target].ability['name']
+            update_consumable_usage(consumable_name=consumable_name)
+        elif factored.action_type == ActionType.PickPackCard and not gs['pack_type'] in ('Standard', 'Buffoon'):
+            consumable_name = self._prev_pack_cards[factored.entity_target].ability['name']
+            update_consumable_usage(consumable_name=consumable_name)
 
         ante = gs.get("round_resets", {}).get("ante", 1)
         round_num = gs.get("round", 0)
         chips = gs.get("chips", 0)
         jokers = gs.get("jokers", [])
         consumables = gs.get("consumables", [])
+        pack_cards = gs.get("pack_cards", [])
 
         # if (random.randint(1,100) == 1):
         #     green_joker = Card()
@@ -120,6 +127,7 @@ class AtermajEnv(BalatroGymnasiumEnv):
         self._prev_ante = ante
         self._prev_chips = chips
         self._prev_consumables = list(consumables)
+        self._prev_pack_cards = list(pack_cards)
         self._episode_max_ante = max(self._episode_max_ante, ante)
         self._episode_max_round = max(self._episode_max_round, round_num)
         self._session_max_ante = max(self._session_max_ante, ante)

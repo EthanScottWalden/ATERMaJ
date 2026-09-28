@@ -13,7 +13,6 @@ dependencies = [
     "sb3-contrib>=2.9.0",
     "stable-baselines3>=2.9.0",
     "tensorboard>=2.21.0",
-    "tensorflow>=2.21.0",
 ]
 
 [project.scripts]
