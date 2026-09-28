@@ -3,9 +3,6 @@ TODO:
 - Investigate how to log joker usage and/or consumable usage. Find out what the heck is in raw_state and if this contains consumable names or ids.
     - Once this is done, figure out a GOOD way to log it, or a GOOD way to store info on it until the end. This will involve both logging callbacks and internal info management in the env.
 
-    - TODO: Seemingly the "center_key" attribute of a card tells us what kind of card it is, including consumables! We can log this info when a move targets a consumable.
-
-
 - Mess around with how rewards are computed, if I so desire.
 - Ask about what to do if simulator throws an exception due to bugged seed.
 - Ask about what to do about the fact that the 500 vector used in gymnasium wrapper doesn't represent all realistic game states.
@@ -17,12 +14,7 @@ import random
 from collections.abc import Callable
 from typing import Any
 
-from jackdaw.env.action_space import (
-    ActionMask,
-    FactoredAction,
-    factored_to_engine_action,
-    get_action_mask,
-)
+from jackdaw.env.action_space import ActionType, FactoredAction
 from jackdaw.env import BalatroGymnasiumEnv
 from jackdaw.env.balatro_spec import balatro_game_spec
 from jackdaw.env.game_interface import GameAdapter
@@ -46,8 +38,11 @@ class AtermajEnv(BalatroGymnasiumEnv):
             seed_prefix: str = "TRAIN",
             reward_shaping: bool = False,
         ) -> None:
-        self._all_jokers_obtained = set()
-        self._rounds_spent_with_joker = dict()
+        # session variables are never reset, and describe the whole training session.
+        self._session_rounds_spent_with_joker: dict[str, int] = dict()
+        self._session_consumable_usages: dict[str, int] = dict()
+        self._session_max_ante: int = 1
+        self._session_max_round: int = 0
 
         super().__init__(adapter_factory, back_keys, stakes, max_steps, seed_prefix, reward_shaping)
 
@@ -92,14 +87,20 @@ class AtermajEnv(BalatroGymnasiumEnv):
 
         return reward
 
-    def _update_trackers(self, info) -> None:
+    def _update_trackers(self, info, factored: FactoredAction) -> None:
         # Update trackers
         gs: dict[str, Any] = info.get("raw_state", {})
+
+        if factored.action_type == ActionType.UseConsumable:
+            consumable_name = self._prev_consumables[factored.entity_target].ability['name']
+            prev_consumable_usage = self._session_consumable_usages.get(consumable_name, 0)
+            self._session_consumable_usages[consumable_name] = prev_consumable_usage + 1
 
         ante = gs.get("round_resets", {}).get("ante", 1)
         round_num = gs.get("round", 0)
         chips = gs.get("chips", 0)
         jokers = gs.get("jokers", [])
+        consumables = gs.get("consumables", [])
 
         # if (random.randint(1,100) == 1):
         #     green_joker = Card()
@@ -107,12 +108,10 @@ class AtermajEnv(BalatroGymnasiumEnv):
 
         #     jokers.append(green_joker)
 
-        self._all_jokers_obtained.update([joker.ability['name'] for joker in jokers])
-
         if (self._prev_round < round_num and len(jokers) > 0):
             for joker in jokers:
-                prev_rounds_spent = self._rounds_spent_with_joker.get(joker.ability['name'], 0)
-                self._rounds_spent_with_joker[joker.ability['name']] = prev_rounds_spent + 1
+                prev_rounds_spent = self._session_rounds_spent_with_joker.get(joker.ability['name'], 0)
+                self._session_rounds_spent_with_joker[joker.ability['name']] = prev_rounds_spent + 1
 
         # print("Obtained:", self._all_jokers_obtained)
         # print("Rounds w/:", self._rounds_spent_with_joker)
@@ -120,15 +119,18 @@ class AtermajEnv(BalatroGymnasiumEnv):
         self._prev_round = round_num
         self._prev_ante = ante
         self._prev_chips = chips
+        self._prev_consumables = list(consumables)
         self._episode_max_ante = max(self._episode_max_ante, ante)
         self._episode_max_round = max(self._episode_max_round, round_num)
+        self._session_max_ante = max(self._session_max_ante, ante)
+        self._session_max_round = max(self._session_max_round, round_num)
 
     def step(self, action: int) -> tuple[dict[str, np.ndarray], float, bool, bool, dict[str, Any]]:
         factored = self._action_table[action]
         game_obs, terminated, truncated, game_mask, info = self._inner.step(factored)
 
         reward = self._compute_reward(info, terminated, truncated)
-        self._update_trackers(info)
+        self._update_trackers(info, factored)
 
         # Rebuild action table for next step
         if not (terminated or truncated):
@@ -139,7 +141,12 @@ class AtermajEnv(BalatroGymnasiumEnv):
         obs = self._build_obs(game_obs)
         step_info: dict[str, Any] = {"action_mask": self.action_masks()}
         if terminated or truncated:
-            step_info["balatro/ante_reached"] = self._episode_max_ante
-            step_info["balatro/rounds_beaten"] = self._episode_max_round
-            step_info["balatro/won"] = self._inner.episode_won
+            step_info["episode/ante_reached"] = self._episode_max_ante
+            step_info["episode/rounds_beaten"] = self._episode_max_round
+            step_info["episode/won"] = self._inner.episode_won
+
+            step_info["session/max_ante_reached"] = self._session_max_ante
+            step_info["session/max_rounds_beaten"] = self._session_max_round
+            step_info["session/joker_rounds"] = dict(self._session_rounds_spent_with_joker)
+            step_info["session/consumable_usages"] = dict(self._session_consumable_usages)
         return obs, reward, terminated, truncated, step_info
