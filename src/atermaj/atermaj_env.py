@@ -38,6 +38,9 @@ class AtermajEnv(BalatroGymnasiumEnv):
             seed_prefix: str = "TRAIN",
             reward_shaping: bool = False,
         ) -> None:
+        self._prev_consumables: list = list()
+        self._prev_pack_cards: list = list()
+
         # session variables are never reset, and describe the whole training session.
         self._session_rounds_spent_with_joker: dict[str, int] = dict()
         self._session_consumable_usages: dict[str, int] = dict()
@@ -67,10 +70,16 @@ class AtermajEnv(BalatroGymnasiumEnv):
 
         earnings = gs.get("round_earnings")
 
-        # Blind beaten: round increased → +0.15 * ante_scale.
-        if round_num > self._prev_round and round_num != 1:
-            reward += 0.15 * ante_scale
-            
+        # Score progress within a blind: chips gained toward target
+        blind = gs.get("blind")
+        blind_target = getattr(blind, "chips", 0) if blind is not None else 0
+        if blind_target > 0 and chips > self._prev_chips:
+            chip_delta = chips - self._prev_chips
+            reward += 0.02 * min(chip_delta / blind_target, 1.0)
+            # Blind beaten: round increased → +0.15 * ante_scale
+            if self._prev_chips < blind_target <= chips:
+                reward += 0.15 * ante_scale
+
         # Boss blind beaten (ante increased) → extra +0.1 * ante_scale
         if ante > self._prev_ante:
             reward += 0.1 * ante_scale
@@ -83,14 +92,7 @@ class AtermajEnv(BalatroGymnasiumEnv):
             # Bonus for each interest dollar.
             interest = earnings.interest
             reward += 0.015 * interest
-
-        # Score progress within a blind: chips gained toward target
-        blind = gs.get("blind")
-        blind_target = getattr(blind, "chips", 0) if blind is not None else 0
-        if blind_target > 0 and chips > self._prev_chips:
-            chip_delta = chips - self._prev_chips
-            reward += 0.02 * min(chip_delta / blind_target, 1.0)
-
+            
         # Terminal
         if terminated or truncated:
             reward += 0.5 if self._inner.episode_won else -0.2
@@ -140,8 +142,6 @@ class AtermajEnv(BalatroGymnasiumEnv):
         self._prev_pack_cards = list(pack_cards)
         self._episode_max_ante = max(self._episode_max_ante, ante)
         self._episode_max_round = max(self._episode_max_round, round_num)
-        self._session_max_ante = max(self._session_max_ante, ante)
-        self._session_max_round = max(self._session_max_round, round_num)
 
     def step(self, action: int) -> tuple[dict[str, np.ndarray], float, bool, bool, dict[str, Any]]:
         factored = self._action_table[action]
@@ -168,3 +168,29 @@ class AtermajEnv(BalatroGymnasiumEnv):
             step_info["session/joker_rounds"] = dict(self._session_rounds_spent_with_joker)
             step_info["session/consumable_usages"] = dict(self._session_consumable_usages)
         return obs, reward, terminated, truncated, step_info
+
+    def reset(
+        self,
+        *,
+        seed: int | None = None,
+        options: dict[str, Any] | None = None,
+    ) -> tuple[dict[str, np.ndarray], dict[str, Any]]:
+        super().reset(seed=seed)
+        if seed is not None:
+            self._rng = np.random.default_rng(seed)
+
+        kwargs: dict[str, Any] = {}
+        if seed is not None:
+            kwargs["seed"] = str(seed)
+
+        game_obs, game_mask, info = self._inner.reset(**kwargs)
+        self._prev_ante = self._inner.episode_ante
+        self._prev_round = 0
+        self._prev_chips = 0
+        self._prev_pack_cards = list()
+        self._prev_consumables = list()
+        self._episode_max_ante = 1
+        self._episode_max_round = 0
+        self._action_table = self._enumerate_actions(game_mask, info)
+        obs = self._build_obs(game_obs)
+        return obs, {"action_mask": self.action_masks()}
