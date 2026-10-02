@@ -1,13 +1,3 @@
-"""
-TODO:
-- Investigate how to log joker usage and/or consumable usage. Find out what the heck is in raw_state and if this contains consumable names or ids.
-    - Once this is done, figure out a GOOD way to log it, or a GOOD way to store info on it until the end. This will involve both logging callbacks and internal info management in the env.
-
-- Mess around with how rewards are computed, if I so desire.
-- Ask about what to do if simulator throws an exception due to bugged seed.
-- Ask about what to do about the fact that the 500 vector used in gymnasium wrapper doesn't represent all realistic game states.
-"""
-
 from __future__ import annotations
 
 import random
@@ -88,7 +78,7 @@ class AtermajEnv(BalatroGymnasiumEnv):
         if earnings is not None and factored.action_type == ActionType.CashOut:
             # Efficient clear: hands remaining bonus. this does not account for the green deck!
             hands_left = earnings.unused_hands_bonus
-            reward += 0.01 * hands_left
+            reward += 0.005 * hands_left
             # Bonus for each interest dollar.
             interest = earnings.interest
             reward += 0.015 * interest
