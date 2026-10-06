@@ -34,7 +34,7 @@ class Aterlog(BaseCallback):
         ax.set_xlabel("Count")
         fig.tight_layout()
 
-        self.writer.add_figure(tag, fig, global_step=self.episodes)
+        self.writer.add_figure(tag, fig, global_step=self.num_timesteps)
         plt.close(fig)
 
     def _on_training_start(self) -> None:
