@@ -89,7 +89,7 @@ class Aterlog(BaseCallback):
         if not self.episodes:
             return
 
-        self.writer.add_scalar("session/win_rate", self.wins / self.episodes, global_step=self.episodes)
+        self.writer.add_scalar("session/win_rate", self.wins / self.episodes, global_step=self.num_timesteps)
 
         episodes = range(1, self.episodes + 1)
         fig, axes = plt.subplots(3, 1, figsize=(10, 8), sharex=True)
