@@ -8,8 +8,9 @@ def main() -> None:
     MODEL_NAME = "ATERMaJ_v0"
 
     # env = AtermajEnv(adapter_factory=DirectAdapter, reward_shaping=True, back_keys=["b_blue"], max_steps=1_000_000)
-    env = AtermajEnv(adapter_factory=DirectAdapter, reward_shaping=True, back_keys=["b_blue"], max_steps=1_000_000)
+    env = AtermajEnv(adapter_factory=DirectAdapter, reward_shaping=True, back_keys=["b_blue"], max_steps=2_000_000)
     
-    model = MaskablePPO("MultiInputPolicy", env, verbose=1, tensorboard_log=f"runs/{MODEL_NAME}")
-    model.learn(total_timesteps=10_000, callback=Aterlog())
+    # model = MaskablePPO("MultiInputPolicy", env, verbose=1, tensorboard_log=f"runs/{MODEL_NAME}")
+    model = MaskablePPO.load(path="models/ATERMaJ_v0.zip", env=env, verbose=1, tensorboard_log=f"runs/{MODEL_NAME}")
+    model.learn(total_timesteps=175_000, callback=Aterlog())
     model.save(f"models/{MODEL_NAME}")
