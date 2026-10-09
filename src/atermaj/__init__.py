@@ -17,7 +17,7 @@ def main() -> None:
         
         try:
             model = MaskablePPO.load(path=f"models/{MODEL_NAME}.zip", env=env, verbose=1, tensorboard_log=f"runs/{MODEL_NAME}")
-            model.learn(total_timesteps=1, reset_num_timesteps=(not ALREADY_RESET_STEPS), callback=ATERLOG)
+            model.learn(total_timesteps=200_000, reset_num_timesteps=(not ALREADY_RESET_STEPS), callback=ATERLOG)
 
             ALREADY_RESET_STEPS = True
 

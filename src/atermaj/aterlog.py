@@ -119,9 +119,6 @@ class Aterlog(BaseCallback):
                 self.consumable_usages[name] = (
                     self.consumable_usages.get(name, 0) + int(count)
                 )
-
-            print(self.joker_rounds)
-            print(self.consumable_usages)
             
             if self.wins_by_deck_stake.get(deck) is None:
                 self.wins_by_deck_stake[deck] = dict()
