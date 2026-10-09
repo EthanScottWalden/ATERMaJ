@@ -6,11 +6,15 @@ def main() -> None:
     from jackdaw.env import BalatroGymnasiumEnv
 
     MODEL_NAME = "ATERMaJ_v0"
+    CHUNKS = 10
 
     # env = AtermajEnv(adapter_factory=DirectAdapter, reward_shaping=True, back_keys=["b_blue"], max_steps=1_000_000)
-    env = AtermajEnv(adapter_factory=DirectAdapter, reward_shaping=True, back_keys=["b_blue"], max_steps=2_000_000)
-    
-    # model = MaskablePPO("MultiInputPolicy", env, verbose=1, tensorboard_log=f"runs/{MODEL_NAME}")
-    model = MaskablePPO.load(path="models/ATERMaJ_v0.zip", env=env, verbose=1, tensorboard_log=f"runs/{MODEL_NAME}")
-    model.learn(total_timesteps=200_000, callback=Aterlog())
-    model.save(f"models/{MODEL_NAME}")
+    for _ in range(CHUNKS):
+        env = AtermajEnv(adapter_factory=DirectAdapter, reward_shaping=True, back_keys=["b_blue"], max_steps=2_000_000)
+        
+        try:
+            model = MaskablePPO.load(path=f"models/{MODEL_NAME}.zip", env=env, verbose=1, tensorboard_log=f"runs/{MODEL_NAME}")
+            model.learn(total_timesteps=200_000, reset_num_timesteps=False, callback=Aterlog())
+            model.save(f"models/{MODEL_NAME}")
+        finally:
+            env.close()
