@@ -30,10 +30,10 @@ class AtermajEnv(BalatroGymnasiumEnv):
         ) -> None:
         self._prev_consumables: list = list()
         self._prev_pack_cards: list = list()
+        self._rounds_spent_with_joker: dict[str, int] = dict()
+        self._consumable_usages: dict[str, int] = dict()
 
         # session variables are never reset, and describe the whole training session.
-        self._session_rounds_spent_with_joker: dict[str, int] = dict()
-        self._session_consumable_usages: dict[str, int] = dict()
         self._session_max_ante: int = 1
         self._session_max_round: int = 0
 
@@ -94,8 +94,8 @@ class AtermajEnv(BalatroGymnasiumEnv):
         gs: dict[str, Any] = info.get("raw_state", {})
 
         def update_consumable_usage(consumable_name: str):
-            prev_consumable_usage = self._session_consumable_usages.get(consumable_name, 0)
-            self._session_consumable_usages[consumable_name] = prev_consumable_usage + 1
+            prev_consumable_usage = self._consumable_usages.get(consumable_name, 0)
+            self._consumable_usages[consumable_name] = prev_consumable_usage + 1
 
         if factored.action_type == ActionType.UseConsumable:
             consumable_name = self._prev_consumables[factored.entity_target].ability['name']
@@ -119,8 +119,8 @@ class AtermajEnv(BalatroGymnasiumEnv):
 
         if (self._prev_round < round_num and len(jokers) > 0):
             for joker in jokers:
-                prev_rounds_spent = self._session_rounds_spent_with_joker.get(joker.ability['name'], 0)
-                self._session_rounds_spent_with_joker[joker.ability['name']] = prev_rounds_spent + 1
+                prev_rounds_spent = self._rounds_spent_with_joker.get(joker.ability['name'], 0)
+                self._rounds_spent_with_joker[joker.ability['name']] = prev_rounds_spent + 1
 
         # print("Obtained:", self._all_jokers_obtained)
         # print("Rounds w/:", self._rounds_spent_with_joker)
@@ -156,11 +156,11 @@ class AtermajEnv(BalatroGymnasiumEnv):
             step_info["episode/won"] = self._inner.episode_won
             step_info["episode/deck"] = gs.get("selected_back_key")
             step_info["episode/stake"] = gs.get("stake")
+            step_info["episode/joker_rounds"] = dict(self._rounds_spent_with_joker)
+            step_info["episode/consumable_usages"] = dict(self._consumable_usages)
 
             step_info["session/max_ante_reached"] = self._session_max_ante
             step_info["session/max_rounds_beaten"] = self._session_max_round
-            step_info["session/joker_rounds"] = dict(self._session_rounds_spent_with_joker)
-            step_info["session/consumable_usages"] = dict(self._session_consumable_usages)
         return obs, reward, terminated, truncated, step_info
 
     def reset(
@@ -185,6 +185,8 @@ class AtermajEnv(BalatroGymnasiumEnv):
         self._prev_consumables = list()
         self._episode_max_ante = 1
         self._episode_max_round = 0
+        self._rounds_spent_with_joker: dict[str, int] = dict()
+        self._consumable_usages: dict[str, int] = dict()
         self._action_table = self._enumerate_actions(game_mask, info)
         obs = self._build_obs(game_obs)
         return obs, {"action_mask": self.action_masks()}

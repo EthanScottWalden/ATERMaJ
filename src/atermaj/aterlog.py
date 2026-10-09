@@ -112,9 +112,17 @@ class Aterlog(BaseCallback):
                 int(info.get("session/max_rounds_beaten", rounds)),
             )
 
-            self.joker_rounds = dict(info.get("session/joker_rounds", {}))
-            self.consumable_usages = dict(info.get("session/consumable_usages", {}))
+            for name, count in info.get("episode/joker_rounds", {}).items():
+                self.joker_rounds[name] = self.joker_rounds.get(name, 0) + int(count)
 
+            for name, count in info.get("episode/consumable_usages", {}).items():
+                self.consumable_usages[name] = (
+                    self.consumable_usages.get(name, 0) + int(count)
+                )
+
+            print(self.joker_rounds)
+            print(self.consumable_usages)
+            
             if self.wins_by_deck_stake.get(deck) is None:
                 self.wins_by_deck_stake[deck] = dict()
 
