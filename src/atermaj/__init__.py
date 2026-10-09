@@ -12,5 +12,5 @@ def main() -> None:
     
     # model = MaskablePPO("MultiInputPolicy", env, verbose=1, tensorboard_log=f"runs/{MODEL_NAME}")
     model = MaskablePPO.load(path="models/ATERMaJ_v0.zip", env=env, verbose=1, tensorboard_log=f"runs/{MODEL_NAME}")
-    model.learn(total_timesteps=1, callback=Aterlog())
+    model.learn(total_timesteps=200_000, callback=Aterlog())
     model.save(f"models/{MODEL_NAME}")
