@@ -2,7 +2,19 @@ from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.logger import TensorBoardOutputFormat
 
 import matplotlib.pyplot as plt
-from matplotlib.ticker import MaxNLocator
+from matplotlib.ticker import MaxNLocator, StrMethodFormatter
+from collections import Counter
+
+STAKES: dict[int, str] = {
+    1: "White",
+    2: "Red",
+    3: "Green",
+    4: "Black",
+    5: "Blue",
+    6: "Purple",
+    7: "Orange",
+    8: "Gold"
+}
 
 class Aterlog(BaseCallback):
     def __init__(self, verbose: int = 0) -> None:
@@ -19,6 +31,7 @@ class Aterlog(BaseCallback):
         self.ante_by_episode: list[int] = []
         self.rounds_by_episode: list[int] = []
         self.wins_by_episode: list[int] = []
+        self.wins_by_deck_stake: dict[str, dict[str, list[int]]] = dict()
 
     def _add_count_chart(self, tag: str, title: str, counts: dict[str, int]) -> None:
         if not counts:
@@ -32,6 +45,25 @@ class Aterlog(BaseCallback):
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
         ax.set_title(title)
         ax.set_xlabel("Count")
+        fig.tight_layout()
+
+        self.writer.add_figure(tag, fig, global_step=self.num_timesteps)
+        plt.close(fig)
+
+    def _add_percent_chart(self, tag: str, title: str, percents: dict[str, float]) -> None:
+        if not percents:
+            return
+
+        items = sorted(percents.items(), key=lambda item: item[1])
+        names, values = zip(*items)
+
+        fig, ax = plt.subplots(figsize=(9, max(3, len(names) * 0.35)))
+        ax.barh(names, values)
+        ax.set_xlim(0.0, 1.0)
+        ax.xaxis.set_major_locator(MaxNLocator(nbins=5))
+        ax.xaxis.set_major_formatter(StrMethodFormatter("{x:.2f}"))
+        ax.set_title(title)
+        ax.set_xlabel("Percent")
         fig.tight_layout()
 
         self.writer.add_figure(tag, fig, global_step=self.num_timesteps)
@@ -58,6 +90,8 @@ class Aterlog(BaseCallback):
             ante = int(info.get("episode/ante_reached", 1))
             rounds = int(info.get("episode/rounds_beaten", 0))
             won = bool(info.get("episode/won", False))
+            deck = info.get("episode/deck")
+            stake = STAKES[int(info.get("episode/stake"))]
 
             self.ante_by_episode.append(ante)
             self.rounds_by_episode.append(rounds)
@@ -80,6 +114,14 @@ class Aterlog(BaseCallback):
 
             self.joker_rounds = dict(info.get("session/joker_rounds", {}))
             self.consumable_usages = dict(info.get("session/consumable_usages", {}))
+
+            if self.wins_by_deck_stake.get(deck) is None:
+                self.wins_by_deck_stake[deck] = dict()
+
+            if self.wins_by_deck_stake[deck].get(stake) is None:
+                self.wins_by_deck_stake[deck][stake] = []
+
+            self.wins_by_deck_stake[deck][stake].append(int(won))
 
             self.episodes += 1
 
@@ -116,21 +158,22 @@ class Aterlog(BaseCallback):
         )
         plt.close(fig)
 
-        # step = self.episodes
-        # self.writer.add_scalar("session/win_rate", self.wins / self.episodes, step)
-        # self.writer.add_scalar("session/max_ante_reached", self.session_max_ante, step)
-        # self.writer.add_scalar("session/max_rounds_beaten", self.session_max_round, step)
-
-        # for name, count in self.joker_rounds.items():
-        #     self.writer.add_scalar(f"session/joker_rounds/{name}", count, step)
-        # for name, count in self.consumable_usages.items():
-        #     self.writer.add_scalar(f"session/consumable_usages/{name}", count, step)
-
         self._add_count_chart(
             "session/joker_rounds_chart", "Rounds spent with each joker", self.joker_rounds
         )
         self._add_count_chart(
             "session/consumable_usages_chart", "Consumable uses", self.consumable_usages
         )
+
+        for deck in self.wins_by_deck_stake.keys():
+            stake_rates: dict[str, int] = dict()
+
+            for stake in self.wins_by_deck_stake[deck]:
+                stake_wins: Counter = Counter(self.wins_by_deck_stake[deck][stake])
+                stake_rates[stake] = stake_wins[1] / len(self.wins_by_deck_stake[deck][stake])
+
+            self._add_percent_chart(
+                f"session/win_rate_{deck}", f"Win rate on {deck} for each stake", stake_rates
+            )
 
         self.writer.flush()

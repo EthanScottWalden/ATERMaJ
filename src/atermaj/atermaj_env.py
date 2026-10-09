@@ -149,9 +149,13 @@ class AtermajEnv(BalatroGymnasiumEnv):
         obs = self._build_obs(game_obs)
         step_info: dict[str, Any] = {"action_mask": self.action_masks()}
         if terminated or truncated:
+            gs: dict[str, Any] = info.get("raw_state", {})
+
             step_info["episode/ante_reached"] = self._episode_max_ante
             step_info["episode/rounds_beaten"] = self._episode_max_round
             step_info["episode/won"] = self._inner.episode_won
+            step_info["episode/deck"] = gs.get("selected_back_key")
+            step_info["episode/stake"] = gs.get("stake")
 
             step_info["session/max_ante_reached"] = self._session_max_ante
             step_info["session/max_rounds_beaten"] = self._session_max_round
