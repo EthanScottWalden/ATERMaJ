@@ -3,17 +3,65 @@ from __future__ import annotations
 import random
 from collections.abc import Callable
 from typing import Any
+from itertools import combinations
 
-from jackdaw.env.action_space import ActionType, FactoredAction
+from jackdaw.env.action_space import ActionType, FactoredAction, get_consumable_target_info
 from jackdaw.env import BalatroGymnasiumEnv
 from jackdaw.env.balatro_spec import balatro_game_spec
 from jackdaw.env.game_interface import GameAdapter
 from jackdaw.env.game_spec import GameActionMask, GameObservation, GameSpec
 from jackdaw.env.observation import encode_observation
 from jackdaw.engine.card import Card
+from jackdaw.engine.blind import Blind
 
 import numpy as np
 
+MAX_ACTIONS: int = 500
+CARD_COMBO_BUDGET: int = 200
+
+# Pre-compute entity layout from spec
+_SPEC = balatro_game_spec()
+_ENTITY_INFO: list[tuple[str, int, int]] = [
+    (et.name, et.max_count, et.feature_dim) for et in _SPEC.entity_types
+]
+# Action types that take no targets at all
+_SIMPLE_TYPES: frozenset[int] = frozenset(
+    i
+    for i, at in enumerate(_SPEC.action_types)
+    if not at.needs_entity_target and not at.needs_card_select
+)
+# Entity-only action types (entity target, no card select) — excludes UseConsumable
+_ENTITY_ONLY_TYPES: frozenset[int] = frozenset(
+    i
+    for i, at in enumerate(_SPEC.action_types)
+    if at.needs_entity_target and not at.needs_card_select
+)
+# Card-only action types (card select, no entity) — PlayHand, Discard
+_CARD_ONLY_TYPES: frozenset[int] = frozenset(
+    i
+    for i, at in enumerate(_SPEC.action_types)
+    if at.needs_card_select and not at.needs_entity_target
+)
+
+def _subsample(items: list[Any], budget: int, rng: np.random.Generator) -> list[Any]:
+    """Return *items* if within budget, else a random subsample."""
+    if len(items) <= budget:
+        return items
+    indices = rng.choice(len(items), size=budget, replace=False)
+    return [items[i] for i in sorted(indices)]
+
+def _card_combos(
+    legal_cards: np.ndarray,
+    min_select: int,
+    max_select: int,
+) -> list[tuple[int, ...]]:
+    """Enumerate all card-index combinations within the selection range."""
+    upper = min(len(legal_cards), max_select)
+    lower = min(min_select, upper)
+    result: list[tuple[int, ...]] = []
+    for k in range(lower, upper + 1):
+        result.extend(tuple(int(c) for c in combo) for combo in combinations(legal_cards, k))
+    return result
 
 class AtermajEnv(BalatroGymnasiumEnv):
     """This is a wrapper class around BalatroGymnasiumEnv created for the sole purpose of overriding methods to define custom behavior.
@@ -132,6 +180,82 @@ class AtermajEnv(BalatroGymnasiumEnv):
         self._prev_pack_cards = list(pack_cards)
         self._episode_max_ante = max(self._episode_max_ante, ante)
         self._episode_max_round = max(self._episode_max_round, round_num)
+
+    def _enumerate_actions(
+            self, mask: GameActionMask, info: dict[str, Any]
+        ) -> list[FactoredAction]:
+        actions: list[FactoredAction] = []
+        type_mask = mask.type_mask
+        gs: dict[str, Any] = info.get("raw_state", {})
+        blind: Blind | None = gs.get("blind")
+        hand: list[Card] = gs.get("hand", [])
+
+        for t in range(len(type_mask)):
+            if not type_mask[t]:
+                continue
+
+            # --- Simple (no targets) ---
+            if t in _SIMPLE_TYPES:
+                actions.append(FactoredAction(action_type=t))
+
+            # --- Entity-only ---
+            elif t in _ENTITY_ONLY_TYPES:
+                if t in mask.entity_masks:
+                    legal = np.nonzero(mask.entity_masks[t])[0]
+                    for idx in legal:
+                        actions.append(FactoredAction(action_type=t, entity_target=int(idx)))
+
+            # --- Card-only (PlayHand / Discard) ---
+            elif t in _CARD_ONLY_TYPES:
+                legal_cards = np.nonzero(mask.card_mask)[0]
+                combos = _card_combos(legal_cards, mask.min_card_select, mask.max_card_select)
+
+                if blind is not None and blind.key == "bl_final_bell" and not blind.disabled:
+                    forced_indices = [
+                        i for i, card in enumerate(hand)
+                        if card.ability.get("forced_selection") is True
+                    ]
+
+                    if forced_indices:
+                        combos = [combo for combo in combos if all(idx in combo for idx in forced_indices)]
+
+                combos = _subsample(combos, CARD_COMBO_BUDGET, self._rng)
+                for combo in combos:
+                    actions.append(FactoredAction(action_type=t, card_target=combo))
+
+            # --- UseConsumable (entity + optional cards) ---
+            elif t == ActionType.UseConsumable:
+                if t in mask.entity_masks:
+                    legal_entities = np.nonzero(mask.entity_masks[t])[0]
+                    raw_consumables = info.get("raw_state", {}).get("consumables", [])
+                    for c_idx in legal_entities:
+                        c_idx_int = int(c_idx)
+                        if c_idx_int < len(raw_consumables):
+                            card = raw_consumables[c_idx_int]
+                            min_cards, max_cards, needs = get_consumable_target_info(card)
+                            if needs:
+                                legal_cards = np.nonzero(mask.card_mask)[0]
+                                combos = _card_combos(legal_cards, min_cards, max_cards)
+                                combos = _subsample(combos, CARD_COMBO_BUDGET, self._rng)
+                                for combo in combos:
+                                    actions.append(
+                                        FactoredAction(
+                                            action_type=t,
+                                            entity_target=c_idx_int,
+                                            card_target=combo,
+                                        )
+                                    )
+                            else:
+                                actions.append(
+                                    FactoredAction(action_type=t, entity_target=c_idx_int)
+                                )
+
+        # Subsample to budget if needed
+        if len(actions) > MAX_ACTIONS:
+            actions = _subsample(actions, MAX_ACTIONS, self._rng)
+
+        return actions
+
 
     def step(self, action: int) -> tuple[dict[str, np.ndarray], float, bool, bool, dict[str, Any]]:
         factored = self._action_table[action]
