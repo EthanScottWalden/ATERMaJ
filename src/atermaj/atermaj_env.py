@@ -87,12 +87,16 @@ class AtermajEnv(BalatroGymnasiumEnv):
 
         super().__init__(adapter_factory, back_keys, stakes, max_steps, seed_prefix, reward_shaping)
 
+    def _episode_won(self):
+        """True if episode won, False otherwise, because the inner episode won check seemingly doesn't work. Calculated from max ante being >= 9, as ante 8 is the last ante of a typical game on every stake and difficulty."""
+        return self._episode_max_ante >= 9
+
     def _compute_reward(self, info: dict[str, Any], terminated: bool, truncated: bool, factored: FactoredAction) -> float:
         """Compute step reward from game state deltas."""
     
         if not self._reward_shaping:
             if terminated or truncated:
-                return 1.0 if self._inner.episode_won else -1.0
+                return 1.0 if self._episode_won() else -1.0
             return 0.0
 
         gs: dict[str, Any] = info.get("raw_state", {})
@@ -133,7 +137,7 @@ class AtermajEnv(BalatroGymnasiumEnv):
             
         # Terminal
         if terminated or truncated:
-            reward += 0.5 if self._inner.episode_won else -0.2
+            reward += 0.5 if self._episode_won() else -0.2
 
         return reward
 
@@ -277,7 +281,7 @@ class AtermajEnv(BalatroGymnasiumEnv):
 
             step_info["episode/ante_reached"] = self._episode_max_ante
             step_info["episode/rounds_beaten"] = self._episode_max_round
-            step_info["episode/won"] = self._inner.episode_won
+            step_info["episode/won"] = self._episode_won()
             step_info["episode/deck"] = gs.get("selected_back_key")
             step_info["episode/stake"] = gs.get("stake")
             step_info["episode/joker_rounds"] = dict(self._rounds_spent_with_joker)
