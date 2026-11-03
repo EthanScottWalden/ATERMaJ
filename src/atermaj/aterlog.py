@@ -22,8 +22,8 @@ class Aterlog(BaseCallback):
         self.writer = None
         self.episodes = 0
         self.wins = 0
-        self.session_max_ante = 1
-        self.session_max_round = 0
+        # self.session_max_ante = 1
+        # self.session_max_round = 0
 
         self.joker_rounds: dict[str, int] = dict()
         self.consumable_usages: dict[str, int] = dict()
@@ -102,15 +102,15 @@ class Aterlog(BaseCallback):
             # self.writer.add_scalar("episode/won", int(won), step)
 
             self.wins += int(won)
-            self.session_max_ante = max(
-                self.session_max_ante,
-                int(info.get("session/max_ante_reached", ante)),
-            )
+            # self.session_max_ante = max(
+            #     self.session_max_ante,
+            #     int(info.get("session/max_ante_reached", ante)),
+            # )
 
-            self.session_max_round = max(
-                self.session_max_round,
-                int(info.get("session/max_rounds_beaten", rounds)),
-            )
+            # self.session_max_round = max(
+            #     self.session_max_round,
+            #     int(info.get("session/max_rounds_beaten", rounds)),
+            # )
 
             for name, count in info.get("episode/joker_rounds", {}).items():
                 self.joker_rounds[name] = self.joker_rounds.get(name, 0) + int(count)

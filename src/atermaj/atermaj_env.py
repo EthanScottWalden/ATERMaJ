@@ -64,9 +64,7 @@ def _card_combos(
     return result
 
 class AtermajEnv(BalatroGymnasiumEnv):
-    """This is a wrapper class around BalatroGymnasiumEnv created for the sole purpose of overriding methods to define custom behavior.
-    
-    Overriden methods: (none)"""
+    """This is a wrapper class around BalatroGymnasiumEnv created for the sole purpose of overriding methods to define custom behavior."""
     def __init__(
             self,
             adapter_factory: Callable[[], GameAdapter],
@@ -82,8 +80,8 @@ class AtermajEnv(BalatroGymnasiumEnv):
         self._consumable_usages: dict[str, int] = dict()
 
         # session variables are never reset, and describe the whole training session.
-        self._session_max_ante: int = 1
-        self._session_max_round: int = 0
+        # self._session_max_ante: int = 1
+        # self._session_max_round: int = 0
 
         super().__init__(adapter_factory, back_keys, stakes, max_steps, seed_prefix, reward_shaping)
 
@@ -290,8 +288,8 @@ class AtermajEnv(BalatroGymnasiumEnv):
             step_info["episode/joker_rounds"] = dict(self._rounds_spent_with_joker)
             step_info["episode/consumable_usages"] = dict(self._consumable_usages)
 
-            step_info["session/max_ante_reached"] = self._session_max_ante
-            step_info["session/max_rounds_beaten"] = self._session_max_round
+            # step_info["session/max_ante_reached"] = self._session_max_ante
+            # step_info["session/max_rounds_beaten"] = self._session_max_round
         return obs, reward, terminated, truncated, step_info
 
     def reset(
