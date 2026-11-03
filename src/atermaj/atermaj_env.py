@@ -11,7 +11,7 @@ from jackdaw.env.balatro_spec import balatro_game_spec
 from jackdaw.env.game_interface import GameAdapter
 from jackdaw.env.game_spec import GameActionMask, GameObservation, GameSpec
 from jackdaw.env.observation import encode_observation
-from jackdaw.engine.card import Card
+# from jackdaw.engine.card import Card
 # from jackdaw.engine.blind import Blind
 
 import numpy as np
@@ -192,12 +192,12 @@ class AtermajEnv(BalatroGymnasiumEnv):
         type_mask = mask.type_mask
         gs: dict[str, Any] = info.get("raw_state", {})
         # blind: Blind | None = gs.get("blind")
-        hand: list[Card] = gs.get("hand", [])
+        # hand: list[Card] = gs.get("hand", [])
 
-        forced_indices = [
-            i for i, card in enumerate(hand)
-            if card.ability.get("forced_selection") is True
-        ]
+        # forced_indices = [
+        #     i for i, card in enumerate(hand)
+        #     if card.ability.get("forced_selection") is True
+        # ]
 
         for t in range(len(type_mask)):
             if not type_mask[t]:
@@ -219,8 +219,8 @@ class AtermajEnv(BalatroGymnasiumEnv):
                 legal_cards = np.nonzero(mask.card_mask)[0]
                 combos = _card_combos(legal_cards, mask.min_card_select, mask.max_card_select)
 
-                if forced_indices:
-                    combos = [combo for combo in combos if all(idx in combo for idx in forced_indices)]
+                # if forced_indices:
+                #     combos = [combo for combo in combos if all(idx in combo for idx in forced_indices)]
 
                 combos = _subsample(combos, CARD_COMBO_BUDGET, self._rng)
                 for combo in combos:
@@ -240,8 +240,8 @@ class AtermajEnv(BalatroGymnasiumEnv):
                                 legal_cards = np.nonzero(mask.card_mask)[0]
                                 combos = _card_combos(legal_cards, min_cards, max_cards)
 
-                                if forced_indices:
-                                    combos = [combo for combo in combos if all(idx in combo for idx in forced_indices)]
+                                # if forced_indices:
+                                #     combos = [combo for combo in combos if all(idx in combo for idx in forced_indices)]
                                     
                                 combos = _subsample(combos, CARD_COMBO_BUDGET, self._rng)
                                 for combo in combos:

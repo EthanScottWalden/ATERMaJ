@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.13"
 
 [[package]]
@@ -326,8 +326,8 @@ wheels = [
 
 [[package]]
 name = "jackdaw"
-version = "0.1.0"
-source = { git = "https://github.com/TylerFlar/jackdaw-balatro.git#e66de78855df84755d3af7d9a016129f3449f878" }
+version = "0.2.2"
+source = { git = "https://github.com/TylerFlar/jackdaw-balatro.git#a9604a6b94067b9e0adce57b25b90e9be4fab4cc" }
 dependencies = [
     { name = "gymnasium" },
     { name = "numpy" },
