@@ -1,0 +1,31 @@
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "C:\Users\griss\repos\ATERMaJ\ATERMaJ\.venv\Scripts\atermaj.exe\__main__.py", line 10, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "C:\Users\griss\repos\ATERMaJ\ATERMaJ\src\atermaj\__init__.py", line 20, in main
+    model.learn(total_timesteps=200_000, reset_num_timesteps=(not ALREADY_RESET_STEPS), callback=ATERLOG)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\griss\repos\ATERMaJ\ATERMaJ\.venv\Lib\site-packages\sb3_contrib\ppo_mask\ppo_mask.py", line 453, in learn
+    continue_training = self.collect_rollouts(self.env, callback, self.rollout_buffer, self.n_steps, use_masking)
+  File "C:\Users\griss\repos\ATERMaJ\ATERMaJ\.venv\Lib\site-packages\sb3_contrib\ppo_mask\ppo_mask.py", line 233, in collect_rollouts
+    new_obs, rewards, dones, infos = env.step(actions)
+                                     ~~~~~~~~^^^^^^^^^
+  File "C:\Users\griss\repos\ATERMaJ\ATERMaJ\.venv\Lib\site-packages\stable_baselines3\common\vec_env\base_vec_env.py", line 222, in step
+    return self.step_wait()
+           ~~~~~~~~~~~~~~^^
+  File "C:\Users\griss\repos\ATERMaJ\ATERMaJ\.venv\Lib\site-packages\stable_baselines3\common\vec_env\dummy_vec_env.py", line 59, in step_wait
+    obs, self.buf_rews[env_idx], terminated, truncated, self.buf_infos[env_idx] = self.envs[env_idx].step(  # type: ignore[assignment]
+                                                                                  ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        self.actions[env_idx]
+        ^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\griss\repos\ATERMaJ\ATERMaJ\.venv\Lib\site-packages\stable_baselines3\common\monitor.py", line 96, in step
+    observation, reward, terminated, truncated, info = self.env.step(action)
+                                                       ~~~~~~~~~~~~~^^^^^^^^
+  File "C:\Users\griss\repos\ATERMaJ\ATERMaJ\src\atermaj\atermaj_env.py", line 266, in step
+    factored = self._action_table[action]
+               ~~~~~~~~~~~~~~~~~~^^^^^^^^
+IndexError: list index out of range
