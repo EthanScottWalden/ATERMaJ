@@ -5,7 +5,7 @@ def main() -> None:
     from atermaj.aterlog import Aterlog
     from jackdaw.env import BalatroGymnasiumEnv
 
-    MODEL_NAME = "ATERMaJ_v1"
+    MODEL_NAME = "ATERMaJ_v2"
     CHUNKS = 5
     ATERLOG = Aterlog()
 
@@ -24,3 +24,4 @@ def main() -> None:
             model.save(f"models/{MODEL_NAME}")
         finally:
             env.close()
+            
