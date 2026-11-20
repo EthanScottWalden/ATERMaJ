@@ -8,7 +8,7 @@ from itertools import combinations
 from jackdaw.env.action_space import ActionType, FactoredAction, get_consumable_target_info
 from jackdaw.env import BalatroGymnasiumEnv
 from jackdaw.env.balatro_spec import balatro_game_spec
-from jackdaw.env.game_interface import GameAdapter
+from jackdaw.env.game_interface import Action, GameAdapter
 from jackdaw.env.game_spec import GameActionMask, GameObservation, GameSpec
 from jackdaw.env.observation import encode_observation
 from jackdaw.engine.card import Card
@@ -100,8 +100,23 @@ class AtermajEnv(BalatroGymnasiumEnv):
         gs: dict[str, Any] = info.get("raw_state", {})
         phase = gs.get("phase")
 
-        # Step cost — discourages stalling; doubled in shop phase
-        reward = -0.002 if phase == "shop" else -0.001
+        POTENTIAL_STALLING_MOVES = (ActionType.SortHandRank, ActionType.SortHandSuit, ActionType.SwapHandLeft, ActionType.SwapHandRight, ActionType.SwapJokersLeft, ActionType.SwapJokersRight)
+
+        # Step cost — discourages stalling; doubled out of rounds
+        if phase != "selecting_hand":
+            reward = -0.02 if factored.action_type in POTENTIAL_STALLING_MOVES else -0.002
+        elif factored.action_type in POTENTIAL_STALLING_MOVES:
+            action_punishment_dict: dict[ActionType, float] = {
+                ActionType.SortHandRank: -0.2,
+                ActionType.SortHandSuit: -0.2,
+                ActionType.SwapHandLeft: -0.01,
+                ActionType.SwapHandRight: -0.01,
+                ActionType.SwapJokersLeft: -0.01,
+                ActionType.SwapJokersRight: -0.01
+            }
+            reward = action_punishment_dict[factored.action_type]
+        else:
+            reward = -0.001
 
         ante = gs.get("round_resets", {}).get("ante", 1)
         round_num = gs.get("round", 0)

@@ -5,7 +5,7 @@ def main() -> None:
     from atermaj.aterlog import Aterlog
     from jackdaw.env import BalatroGymnasiumEnv
 
-    MODEL_NAME = "ATERMaJ_v2"
+    MODEL_NAME = "ATERMaJ_PRIME"
     CHUNKS = 5
     ATERLOG = Aterlog()
 
@@ -16,7 +16,7 @@ def main() -> None:
         env = AtermajEnv(adapter_factory=DirectAdapter, reward_shaping=True, back_keys=["b_blue"], max_steps=2_000_000)
         
         try:
-            model = MaskablePPO.load(path=f"models/{MODEL_NAME}.zip", env=env, verbose=1, tensorboard_log=f"runs/{MODEL_NAME}", custom_objects={"learning_rate": 5e-5})
+            model = MaskablePPO.load(path=f"models/{MODEL_NAME}.zip", env=env, verbose=1, tensorboard_log=f"runs/{MODEL_NAME}", custom_objects={"learning_rate": 5e-5, "ent_coef": 0.01})
             model.learn(total_timesteps=200_000, reset_num_timesteps=(not ALREADY_RESET_STEPS), callback=ATERLOG)
 
             ALREADY_RESET_STEPS = True
